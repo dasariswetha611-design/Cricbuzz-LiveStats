@@ -189,52 +189,450 @@ elif menu == "Matches":
     wins = df["winning_team"].value_counts()
     st.bar_chart(wins)
 
+
+
 elif menu == "SQL Analytics":
+
     st.header("SQL Analytics")
+    st.write("Explore 25 SQL questions using the Cricbuzz SQLite database.")
 
     query_options = {
-        "Q2 Recent Matches": """
-    SELECT m.match_description, m.team1, m.team2, m.venue_name, v.city, m.match_date
-    FROM matches m
-    JOIN venues v ON m.venue_name = v.venue_name
-    ORDER BY m.match_date DESC
-""",
 
-"Q4 Large Venues": """
-    SELECT venue_name, city, country, capacity
-    FROM venues
-    WHERE capacity > 25000
-    ORDER BY capacity DESC
-""",
+        # =========================
+        # BEGINNER LEVEL
+        # =========================
 
-"Q7 Highest Score by Format": """
-    SELECT match_format, MAX(highest_score) AS highest_individual_score
-    FROM batting_stats
-    GROUP BY match_format
-""",
+        "Beginner - Q1 India Players": """
+            SELECT
+                player_id,
+                full_name,
+                country,
+                playing_role,
+                batting_style,
+                bowling_style
+            FROM players
+            WHERE LOWER(country) = 'india'
+            ORDER BY full_name;
+        """,
 
-"Q23 Player Form": """
-    SELECT player_name,
-           ROUND(AVG(runs),2) AS avg_runs,
-           ROUND(AVG(strike_rate),2) AS avg_sr,
-           CASE
-               WHEN AVG(runs)>=100 THEN 'Excellent Form'
-               WHEN AVG(runs)>=50 THEN 'Good Form'
-               WHEN AVG(runs)>=30 THEN 'Average Form'
-               ELSE 'Poor Form'
-           END AS form_category
-    FROM batting_stats
-    GROUP BY player_name
-    ORDER BY avg_runs DESC
-"""
+        "Beginner - Q2 Recent Matches": """
+            SELECT
+                m.match_description,
+                m.team1,
+                m.team2,
+                m.winning_team,
+                m.venue_name,
+                v.city,
+                m.match_date,
+                m.match_format
+            FROM matches m
+            LEFT JOIN venues v
+                ON m.venue_name = v.venue_name
+            ORDER BY m.match_date DESC;
+        """,
+
+        "Beginner - Q3 Top ODI Run Scorers": """
+            SELECT
+                player_name,
+                SUM(runs) AS total_runs,
+                AVG(strike_rate) AS average_strike_rate,
+                SUM(centuries) AS total_centuries
+            FROM batting_stats
+            WHERE UPPER(match_format) = 'ODI'
+            GROUP BY player_name
+            ORDER BY total_runs DESC
+            LIMIT 10;
+        """,
+
+        "Beginner - Q4 Large Venues": """
+            SELECT
+                venue_name,
+                city,
+                country,
+                capacity
+            FROM venues
+            WHERE capacity > 25000
+            ORDER BY capacity DESC;
+        """,
+
+        "Beginner - Q5 Team Wins": """
+            SELECT
+                winning_team,
+                COUNT(*) AS total_wins
+            FROM matches
+            WHERE winning_team IS NOT NULL
+              AND TRIM(winning_team) != ''
+            GROUP BY winning_team
+            ORDER BY total_wins DESC;
+        """,
+
+        "Beginner - Q6 Players by Role": """
+            SELECT
+                playing_role,
+                COUNT(*) AS total_players
+            FROM players
+            WHERE playing_role IS NOT NULL
+            GROUP BY playing_role
+            ORDER BY total_players DESC;
+        """,
+
+        "Beginner - Q7 Highest Individual Score by Format": """
+            SELECT
+                match_format,
+                MAX(runs) AS highest_individual_score
+            FROM batting_stats
+            GROUP BY match_format
+            ORDER BY highest_individual_score DESC;
+        """,
+
+        "Beginner - Q8 Matches in 2024": """
+            SELECT
+                match_description,
+                team1,
+                team2,
+                match_format,
+                match_date,
+                venue_name
+            FROM matches
+            WHERE SUBSTR(match_date, 1, 4) = '2024'
+            ORDER BY match_date;
+        """,
+
+        # =========================
+        # INTERMEDIATE LEVEL
+        # =========================
+
+        "Intermediate - Q9 All-Rounder Performance": """
+            SELECT
+                p.full_name,
+                p.playing_role,
+                COALESCE(b.total_runs, 0) AS total_runs,
+                COALESCE(w.total_wickets, 0) AS total_wickets,
+                w.average_economy
+            FROM players p
+            LEFT JOIN (
+                SELECT
+                    player_name,
+                    SUM(runs) AS total_runs
+                FROM batting_stats
+                GROUP BY player_name
+            ) b
+                ON LOWER(p.full_name) = LOWER(b.player_name)
+            LEFT JOIN (
+                SELECT
+                    player_name,
+                    SUM(wickets) AS total_wickets,
+                    ROUND(AVG(economy), 2) AS average_economy
+                FROM bowling_stats
+                GROUP BY player_name
+            ) w
+                ON LOWER(p.full_name) = LOWER(w.player_name)
+            WHERE LOWER(p.playing_role) LIKE '%all-round%'
+            ORDER BY total_runs DESC;
+        """,
+
+        "Intermediate - Q10 Last 20 Completed Matches": """
+            SELECT
+                match_description,
+                team1,
+                team2,
+                winning_team,
+                match_format,
+                match_date
+            FROM matches
+            WHERE winning_team IS NOT NULL
+              AND TRIM(winning_team) != ''
+            ORDER BY match_date DESC
+            LIMIT 20;
+        """,
+
+        "Intermediate - Q11 Player Performance Across Formats": """
+            SELECT
+                player_name,
+                match_format,
+                COUNT(*) AS innings_records,
+                SUM(runs) AS total_runs,
+                ROUND(AVG(runs), 2) AS average_runs,
+                ROUND(AVG(strike_rate), 2) AS average_strike_rate,
+                SUM(centuries) AS total_centuries
+            FROM batting_stats
+            GROUP BY player_name, match_format
+            ORDER BY player_name, total_runs DESC;
+        """,
+
+        "Intermediate - Q12 Team 1 vs Team 2 Win Records": """
+            SELECT
+                team_name,
+                COUNT(*) AS matches_played,
+                SUM(wins) AS matches_won
+            FROM (
+                SELECT
+                    team1 AS team_name,
+                    CASE WHEN winning_team = team1 THEN 1 ELSE 0 END AS wins
+                FROM matches
+
+                UNION ALL
+
+                SELECT
+                    team2 AS team_name,
+                    CASE WHEN winning_team = team2 THEN 1 ELSE 0 END AS wins
+                FROM matches
+            )
+            GROUP BY team_name
+            ORDER BY matches_won DESC;
+        """,
+
+        "Intermediate - Q13 Partnerships": """
+            SELECT
+                'Partnership analysis is unavailable because the current '
+                || 'database does not contain a partnerships table.'
+                AS information;
+        """,
+
+        "Intermediate - Q14 Bowling Performance by Format": """
+            SELECT
+                player_name,
+                match_format,
+                SUM(wickets) AS total_wickets,
+                SUM(runs_given) AS total_runs_conceded,
+                ROUND(AVG(economy), 2) AS average_economy
+            FROM bowling_stats
+            GROUP BY player_name, match_format
+            ORDER BY total_wickets DESC;
+        """,
+
+        "Intermediate - Q15 Top Individual Batting Performances": """
+            SELECT
+                player_name,
+                match_format,
+                MAX(runs) AS highest_runs,
+                MAX(strike_rate) AS highest_strike_rate
+            FROM batting_stats
+            GROUP BY player_name, match_format
+            ORDER BY highest_runs DESC
+            LIMIT 20;
+        """,
+
+        "Intermediate - Q16 Matches by Year Since 2020": """
+            SELECT
+                SUBSTR(match_date, 1, 4) AS match_year,
+                COUNT(*) AS total_matches
+            FROM matches
+            WHERE match_date IS NOT NULL
+              AND SUBSTR(match_date, 1, 4) >= '2020'
+            GROUP BY SUBSTR(match_date, 1, 4)
+            ORDER BY match_year;
+        """,
+
+        # =========================
+        # ADVANCED LEVEL
+        # =========================
+
+        "Advanced - Q17 Toss Winning Advantage": """
+            SELECT
+                'Toss analysis is unavailable because the current '
+                || 'matches table does not contain toss_winner or '
+                || 'toss_decision columns.'
+                AS information;
+        """,
+
+        "Advanced - Q18 Most Economical Bowlers": """
+            SELECT
+                player_name,
+                SUM(wickets) AS total_wickets,
+                ROUND(AVG(economy), 2) AS average_economy,
+                SUM(overs) AS total_overs,
+                SUM(runs_given) AS total_runs_conceded
+            FROM bowling_stats
+            GROUP BY player_name
+            HAVING SUM(overs) > 0
+            ORDER BY average_economy ASC
+            LIMIT 10;
+        """,
+
+        "Advanced - Q19 Consistent Batsmen": """
+            SELECT
+                player_name,
+                COUNT(*) AS innings_records,
+                ROUND(AVG(runs), 2) AS average_runs,
+                ROUND(
+                    MAX(
+                        0,
+                        AVG(runs * runs) - AVG(runs) * AVG(runs)
+                    ),
+                    2
+                ) AS runs_variance
+            FROM batting_stats
+            GROUP BY player_name
+            HAVING COUNT(*) >= 2
+            ORDER BY runs_variance ASC, average_runs DESC
+            LIMIT 10;
+        """,
+
+        "Advanced - Q20 Match Summary by Format": """
+            SELECT
+                match_format,
+                COUNT(*) AS total_matches,
+                COUNT(DISTINCT team1) AS team1_count,
+                COUNT(DISTINCT team2) AS team2_count,
+                COUNT(DISTINCT winning_team) AS different_winning_teams
+            FROM matches
+            GROUP BY match_format
+            ORDER BY total_matches DESC;
+        """,
+
+        "Advanced - Q21 Weighted Player Ranking": """
+            SELECT
+                player_name,
+                SUM(runs) AS total_runs,
+                ROUND(AVG(strike_rate), 2) AS average_strike_rate,
+                SUM(centuries) AS total_centuries,
+                ROUND(
+                    SUM(runs) * 0.5
+                    + AVG(strike_rate) * 0.3
+                    + SUM(centuries) * 20,
+                    2
+                ) AS performance_score
+            FROM batting_stats
+            GROUP BY player_name
+            ORDER BY performance_score DESC
+            LIMIT 10;
+        """,
+
+        "Advanced - Q22 Head-to-Head Team Records": """
+            SELECT
+                CASE
+                    WHEN team1 < team2 THEN team1
+                    ELSE team2
+                END AS team_a,
+
+                CASE
+                    WHEN team1 < team2 THEN team2
+                    ELSE team1
+                END AS team_b,
+
+                COUNT(*) AS matches_played,
+
+                SUM(
+                    CASE
+                        WHEN winning_team =
+                            CASE
+                                WHEN team1 < team2 THEN team1
+                                ELSE team2
+                            END
+                        THEN 1 ELSE 0
+                    END
+                ) AS team_a_wins,
+
+                SUM(
+                    CASE
+                        WHEN winning_team =
+                            CASE
+                                WHEN team1 < team2 THEN team2
+                                ELSE team1
+                            END
+                        THEN 1 ELSE 0
+                    END
+                ) AS team_b_wins
+
+            FROM matches
+            GROUP BY
+                CASE WHEN team1 < team2 THEN team1 ELSE team2 END,
+                CASE WHEN team1 < team2 THEN team2 ELSE team1 END
+            ORDER BY matches_played DESC;
+        """,
+
+        "Advanced - Q23 Player Recent Form Summary": """
+            SELECT
+                player_name,
+                COUNT(*) AS innings_records,
+                ROUND(AVG(runs), 2) AS avg_runs,
+                ROUND(AVG(strike_rate), 2) AS avg_strike_rate,
+                CASE
+                    WHEN AVG(runs) >= 100 THEN 'Excellent Form'
+                    WHEN AVG(runs) >= 50 THEN 'Good Form'
+                    WHEN AVG(runs) >= 30 THEN 'Average Form'
+                    ELSE 'Needs Improvement'
+                END AS form_category
+            FROM batting_stats
+            GROUP BY player_name
+            ORDER BY avg_runs DESC;
+        """,
+
+        "Advanced - Q24 Best Batting Partnerships": """
+            SELECT
+                'Partnership analysis is unavailable because the current '
+                || 'database does not contain partnership player names '
+                || 'or partnership runs.'
+                AS information;
+        """,
+
+        "Advanced - Q25 Quarterly Match Trends": """
+            SELECT
+                SUBSTR(match_date, 1, 4) AS match_year,
+                'Q' || (
+                    CAST(
+                        (CAST(SUBSTR(match_date, 6, 2) AS INTEGER) - 1) / 3
+                        AS INTEGER
+                    ) + 1
+                ) AS match_quarter,
+                COUNT(*) AS total_matches
+            FROM matches
+            WHERE match_date IS NOT NULL
+              AND LENGTH(match_date) >= 7
+            GROUP BY
+                SUBSTR(match_date, 1, 4),
+                CAST(
+                    (CAST(SUBSTR(match_date, 6, 2) AS INTEGER) - 1) / 3
+                    AS INTEGER
+                )
+            ORDER BY match_year, match_quarter;
+        """
     }
 
-    selected_query = st.selectbox("Choose SQL Query", list(query_options.keys()))
+    # Query selection
+    selected_query = st.selectbox(
+        "Choose a SQL Analytics Question",
+        list(query_options.keys())
+    )
 
+    # Display SQL
+    st.subheader(selected_query)
     st.code(query_options[selected_query], language="sql")
 
-    result = pd.read_sql_query(query_options[selected_query], conn)
-    st.dataframe(result)
+    # Execute selected query
+    try:
+        result = pd.read_sql_query(
+            query_options[selected_query],
+            conn
+        )
+
+        st.success(
+            f"Query executed successfully! "
+            f"{len(result)} record(s) returned."
+        )
+
+        if not result.empty:
+            st.dataframe(
+                result,
+                use_container_width=True
+            )
+        else:
+            st.info(
+                "The query ran successfully, but no records were found."
+            )
+
+    except Exception as e:
+        st.error("Unable to execute this SQL query.")
+        st.code(str(e))
+
+    st.caption(
+        "Note: Results depend on the records currently stored "
+        "in your SQLite database. Some analyses are unavailable "
+        "because the current database does not store the required data."
+    )
+
+
 
 elif menu == "CRUD Operations":
     st.header("Add New Player")
